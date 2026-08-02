@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>m3u8DL Sniffer</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <!-- 头部 -->
+    <div class="header">
+      <div class="title">
+        <img src="icons/icon48.png" alt="logo" class="logo">
+        <span>m3u8DL Sniffer</span>
+      </div>
+      <div class="status" id="status">
+        <span class="status-dot"></span>
+        <span class="status-text">未连接</span>
+      </div>
+    </div>
+
+    <!-- 工具栏 -->
+    <div class="toolbar">
+      <button id="btnRefresh" class="btn btn-small" title="刷新">刷新</button>
+      <button id="btnClear" class="btn btn-small btn-secondary" title="清空">清空</button>
+      <button id="btnSelectAll" class="btn btn-small btn-secondary" title="全选">全选</button>
+      <span class="resource-count" id="resourceCount">0 个资源</span>
+    </div>
+
+    <!-- 资源列表 -->
+    <div class="resource-list" id="resourceList">
+      <div class="empty-state" id="emptyState">
+        <p>暂未检测到媒体资源</p>
+        <p class="hint">请播放视频后刷新</p>
+      </div>
+    </div>
+
+    <!-- 底部操作栏 -->
+    <div class="footer">
+      <div class="selected-info">
+        已选 <span id="selectedCount">0</span> 个
+      </div>
+      <button id="btnSend" class="btn btn-primary" disabled>
+        发送到远程下载
+      </button>
+    </div>
+  </div>
+
+  <!-- Toast 提示 -->
+  <div class="toast" id="toast"></div>
+
+  <script src="lib/hls.min.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>m3u8DL Sniffer 设置</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <img src="icons/icon48.png" alt="logo" class="logo">
+      <h1>m3u8DL Sniffer 设置</h1>
+    </div>
+
+    <!-- 服务器配置 -->
+    <section class="section">
+      <h2>远程服务器配置</h2>
+      <div class="form-group">
+        <label for="server">服务器地址</label>
+        <input type="text" id="server" placeholder="http://192.168.1.100:8080">
+        <p class="help">N_m3u8DL-RE-WEB-UI 服务器地址，如 http://192.168.1.100:8080</p>
+      </div>
+      <div class="form-group">
+        <label for="username">用户名</label>
+        <input type="text" id="username" placeholder="admin">
+      </div>
+      <div class="form-group">
+        <label for="password">密码</label>
+        <input type="password" id="password" placeholder="请输入密码">
+      </div>
+      <div class="form-actions">
+        <button id="btnTest" class="btn btn-secondary">测试连接</button>
+        <button id="btnSave" class="btn btn-primary">保存配置</button>
+      </div>
+      <div id="testResult" class="test-result"></div>
+    </section>
+
+    <!-- 嗅探资源类型 -->
+    <section class="section">
+      <h2>嗅探资源类型</h2>
+      <p class="help" style="margin-bottom: 12px;">取消勾选将不会嗅探该类型的资源</p>
+      <div class="ext-grid" id="extGrid">
+        <!-- 动态生成 -->
+      </div>
+    </section>
+
+    <!-- 代理配置 -->
+    <section class="section">
+      <h2>代理配置</h2>
+      <div class="form-group">
+        <label>
+          <input type="checkbox" id="proxyEnable">
+          启用代理
+        </label>
+        <p class="help">启用后，预览和下载任务将通过代理服务器</p>
+      </div>
+      <div id="proxySettings" class="hide">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="proxyType">代理类型</label>
+            <select id="proxyType" class="select-input">
+              <option value="http">HTTP</option>
+              <option value="https">HTTPS</option>
+              <option value="socks5">SOCKS5</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="proxyHost">代理地址</label>
+            <input type="text" id="proxyHost" placeholder="127.0.0.1">
+          </div>
+          <div class="form-group">
+            <label for="proxyPort">端口</label>
+            <input type="number" id="proxyPort" placeholder="7890" min="1" max="65535">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>
+            <input type="checkbox" id="proxyAuth">
+            需要认证
+          </label>
+        </div>
+        <div id="proxyAuthSettings" class="form-row hide">
+          <div class="form-group">
+            <label for="proxyUsername">用户名</label>
+            <input type="text" id="proxyUsername" placeholder="代理用户名">
+          </div>
+          <div class="form-group">
+            <label for="proxyPassword">密码</label>
+            <input type="password" id="proxyPassword" placeholder="代理密码">
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 下载参数 -->
+    <section class="section">
+      <h2>默认下载参数</h2>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="threadCount">线程数</label>
+          <input type="number" id="threadCount" value="32" min="1" max="128">
+        </div>
+        <div class="form-group">
+          <label for="retryCount">重试次数</label>
+          <input type="number" id="retryCount" value="15" min="0" max="100">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>
+          <input type="checkbox" id="autoSelect" checked>
+          自动选择最佳流 (auto_select)
+        </label>
+        <p class="help">自动选择最佳视频和音频流，避免交互式选择菜单</p>
+      </div>
+    </section>
+
+    <!-- 保存提示 -->
+    <div id="saveResult" class="save-result"></div>
+  </div>
+
+  <script src="options.js"></script>
+</body>
+</html>
