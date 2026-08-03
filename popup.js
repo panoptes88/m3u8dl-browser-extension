@@ -161,8 +161,8 @@ function renderResources() {
           <span class="resource-name" title="${escapeHtml(resource.url)}">${escapeHtml(fileName)}</span>
           <span class="resource-size ${sizeStr ? '' : 'hide'}">${sizeStr}</span>
           <span class="resource-ext ${ext}">${ext}</span>
-          ${isM3u8 ? `<button class="btn-icon btn-play" data-index="${index}" title="预览">▶</button>` : ''}
-          <button class="btn-icon btn-copy-url" data-index="${index}" title="复制链接">📋</button>
+          ${isM3u8 ? `<button class="btn-icon btn-play" data-index="${index}" title="预览"><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="6 3 20 12 6 21 6 3"/></svg></button>` : ''}
+          <button class="btn-icon btn-copy-url" data-index="${index}" title="复制链接"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
         </div>
         <div class="panel-body hide" id="panel-${index}">
           <div class="media-info" id="media-info-${index}" data-loaded="false">
@@ -581,7 +581,7 @@ async function handleSend() {
   const selectedResources = Array.from(selectedIndices).map(i => resources[i]);
 
   elements.btnSend.disabled = true;
-  elements.btnSend.textContent = '发送中...';
+  elements.btnSend.querySelector('.btn-label').textContent = '发送中...';
 
   let successCount = 0;
   let failCount = 0;
@@ -641,7 +641,7 @@ async function handleSend() {
   }
 
   elements.btnSend.disabled = false;
-  elements.btnSend.textContent = '发送到远程下载';
+  elements.btnSend.querySelector('.btn-label').textContent = '发送到远程下载';
 
   if (failCount === 0) {
     showToast(`成功发送 ${successCount} 个任务`, 'success');

@@ -15,7 +15,7 @@
 
     <!-- 服务器配置 -->
     <section class="section">
-      <h2>远程服务器配置</h2>
+      <h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>远程服务器配置</h2>
       <div class="form-group">
         <label for="server">服务器地址</label>
         <input type="text" id="server" placeholder="http://192.168.1.100:8080">
@@ -30,15 +30,21 @@
         <input type="password" id="password" placeholder="请输入密码">
       </div>
       <div class="form-actions">
-        <button id="btnTest" class="btn btn-secondary">测试连接</button>
-        <button id="btnSave" class="btn btn-primary">保存配置</button>
+        <button id="btnTest" class="btn btn-secondary">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          <span class="btn-label">测试连接</span>
+        </button>
+        <button id="btnSave" class="btn btn-primary">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+          保存配置
+        </button>
       </div>
       <div id="testResult" class="test-result"></div>
     </section>
 
     <!-- 嗅探资源类型 -->
     <section class="section">
-      <h2>嗅探资源类型</h2>
+      <h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>嗅探资源类型</h2>
       <p class="help" style="margin-bottom: 12px;">取消勾选将不会嗅探该类型的资源</p>
       <div class="ext-grid" id="extGrid">
         <!-- 动态生成 -->
@@ -47,7 +53,7 @@
 
     <!-- 代理配置 -->
     <section class="section">
-      <h2>代理配置</h2>
+      <h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>代理配置</h2>
       <div class="form-group">
         <label>
           <input type="checkbox" id="proxyEnable">
@@ -95,7 +101,7 @@
 
     <!-- 下载参数 -->
     <section class="section">
-      <h2>默认下载参数</h2>
+      <h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>默认下载参数</h2>
       <div class="form-row">
         <div class="form-group">
           <label for="threadCount">线程数</label>

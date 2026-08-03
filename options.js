@@ -208,7 +208,7 @@ async function handleTest() {
 
   // 禁用按钮
   elements.btnTest.disabled = true;
-  elements.btnTest.textContent = '测试中...';
+  elements.btnTest.querySelector('.btn-label').textContent = '测试中...';
 
   try {
     const result = await new Promise((resolve) => {
@@ -232,7 +232,7 @@ async function handleTest() {
     showTestResult(`连接错误: ${e.message}`, 'error');
   } finally {
     elements.btnTest.disabled = false;
-    elements.btnTest.textContent = '测试连接';
+    elements.btnTest.querySelector('.btn-label').textContent = '测试连接';
   }
 }
 

@@ -1,0 +1,86 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1020" height="720" viewBox="0 0 1020 720" font-family="'PingFang SC','Microsoft YaHei',sans-serif">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#4f46e5"/>
+    </marker>
+    <marker id="arrowGray" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#94a3b8"/>
+    </marker>
+  </defs>
+
+  <rect width="1020" height="720" fill="#f8fafc"/>
+  <text x="510" y="42" text-anchor="middle" font-size="24" font-weight="700" fill="#1e293b">m3u8DL Sniffer 工作原理草图</text>
+
+  <!-- 网页 -->
+  <rect x="40" y="90" width="220" height="120" rx="14" fill="#ffffff" stroke="#4f46e5" stroke-width="2.5"/>
+  <text x="150" y="130" text-anchor="middle" font-size="18" font-weight="600" fill="#1e293b">🎬 网页</text>
+  <text x="150" y="158" text-anchor="middle" font-size="14" fill="#64748b">播放视频 / 音频</text>
+  <text x="150" y="180" text-anchor="middle" font-size="13" fill="#94a3b8">发起 m3u8 / mp4 / ts 等请求</text>
+
+  <!-- 箭头 网页->后台 -->
+  <line x1="260" y1="150" x2="330" y2="150" stroke="#4f46e5" stroke-width="2.5" marker-end="url(#arrow)"/>
+  <text x="295" y="138" text-anchor="middle" font-size="13" fill="#4f46e5">网络请求</text>
+
+  <!-- 后台 Service Worker 大框 -->
+  <rect x="330" y="80" width="380" height="420" rx="16" fill="#eef2ff" stroke="#4f46e5" stroke-width="2.5"/>
+  <text x="520" y="112" text-anchor="middle" font-size="18" font-weight="700" fill="#4338ca">background.js（Service Worker）</text>
+
+  <!-- 子框1 嗅探 -->
+  <rect x="352" y="132" width="336" height="96" rx="10" fill="#ffffff" stroke="#818cf8" stroke-width="1.8"/>
+  <text x="368" y="158" font-size="15" font-weight="600" fill="#1e293b">① 嗅探监听</text>
+  <text x="368" y="182" font-size="13" fill="#64748b">chrome.webRequest</text>
+  <text x="368" y="202" font-size="13" fill="#64748b">onSendHeaders / onResponseStarted</text>
+
+  <!-- 子框2 判定 -->
+  <rect x="352" y="244" width="336" height="118" rx="10" fill="#ffffff" stroke="#818cf8" stroke-width="1.8"/>
+  <text x="368" y="270" font-size="15" font-weight="600" fill="#1e293b">② 判定与过滤</text>
+  <text x="368" y="294" font-size="13" fill="#64748b">URL 扩展名 + 响应 Content-Type</text>
+  <text x="368" y="314" font-size="13" fill="#64748b">识别 .txt/.json 伪装的 m3u8</text>
+  <text x="368" y="334" font-size="13" fill="#64748b">IGNORE_PATTERNS 排除无关站点</text>
+
+  <!-- 子框3 资源表 -->
+  <rect x="352" y="378" width="336" height="100" rx="10" fill="#ffffff" stroke="#818cf8" stroke-width="1.8"/>
+  <text x="368" y="404" font-size="15" font-weight="600" fill="#1e293b">③ 内存资源表（Map）</text>
+  <text x="368" y="428" font-size="13" fill="#64748b">按标签页 tabId 分组存放</text>
+  <text x="368" y="448" font-size="13" fill="#64748b">URL 去掉 query 后去重</text>
+
+  <!-- popup 弹窗 -->
+  <rect x="770" y="90" width="220" height="150" rx="14" fill="#ffffff" stroke="#4f46e5" stroke-width="2.5"/>
+  <text x="880" y="124" text-anchor="middle" font-size="17" font-weight="600" fill="#1e293b">popup 弹窗</text>
+  <text x="880" y="150" text-anchor="middle" font-size="13" fill="#64748b">资源列表 / 勾选 / 复制</text>
+  <text x="880" y="170" text-anchor="middle" font-size="13" fill="#64748b">hls.js 预览（注入 Referer）</text>
+  <text x="880" y="190" text-anchor="middle" font-size="13" fill="#64748b">失败回退：代理解析 m3u8</text>
+  <text x="880" y="216" text-anchor="middle" font-size="13" font-weight="600" fill="#4338ca">点击「发送到远程下载」</text>
+
+  <!-- popup <-> background 消息 -->
+  <line x1="770" y1="140" x2="710" y2="140" stroke="#4f46e5" stroke-width="2.5" marker-end="url(#arrow)" marker-start="url(#arrow)"/>
+  <text x="740" y="128" text-anchor="middle" font-size="12" fill="#4f46e5">getResources</text>
+
+  <!-- options 设置页 -->
+  <rect x="770" y="290" width="220" height="110" rx="14" fill="#ffffff" stroke="#94a3b8" stroke-width="2" stroke-dasharray="7 5"/>
+  <text x="880" y="324" text-anchor="middle" font-size="17" font-weight="600" fill="#1e293b">options 设置页</text>
+  <text x="880" y="350" text-anchor="middle" font-size="13" fill="#64748b">服务器 / 账号 / 嗅探类型</text>
+  <text x="880" y="370" text-anchor="middle" font-size="13" fill="#64748b">代理 / 线程数 / 重试次数</text>
+
+  <!-- options -> storage -->
+  <line x1="770" y1="360" x2="712" y2="360" stroke="#94a3b8" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#arrowGray)"/>
+  <text x="740" y="384" text-anchor="middle" font-size="12" fill="#94a3b8">chrome.storage.sync</text>
+
+  <!-- 远程服务器 -->
+  <rect x="470" y="560" width="520" height="130" rx="14" fill="#ffffff" stroke="#16a34a" stroke-width="2.5"/>
+  <text x="730" y="594" text-anchor="middle" font-size="17" font-weight="700" fill="#15803d">远程服务器：N_m3u8DL-RE-WEB-UI</text>
+  <text x="730" y="624" text-anchor="middle" font-size="13" fill="#64748b">POST /api/auth/login 登录 → 拿 auth_token（cookie 缓存）</text>
+  <text x="730" y="646" text-anchor="middle" font-size="13" fill="#64748b">POST /api/tasks 创建任务（URL + Referer + 线程/重试/代理）</text>
+  <text x="730" y="672" text-anchor="middle" font-size="13" fill="#64748b">服务器端调用 N_m3u8DL-RE 实际下载合并视频</text>
+
+  <!-- 发送任务箭头 popup->server（沿右侧绕过 options） -->
+  <path d="M905,240 C1008,320 1008,470 950,558" fill="none" stroke="#16a34a" stroke-width="2.5" marker-end="url(#arrow)"/>
+  <text x="1000" y="450" text-anchor="end" font-size="13" fill="#16a34a">发送任务</text>
+
+  <!-- background 与服务器无直接请求说明 -->
+  <text x="120" y="560" font-size="14" font-weight="600" fill="#64748b">要点：</text>
+  <text x="120" y="590" font-size="13" fill="#64748b">· 扩展只负责「嗅探 + 转发链接」，不下载视频</text>
+  <text x="120" y="614" font-size="13" fill="#64748b">· 预览经 declarativeNetRequest 注入 Referer 防盗链</text>
+  <text x="120" y="638" font-size="13" fill="#64748b">· 配置存 chrome.storage.sync，token 存 storage.local</text>
+  <text x="120" y="662" font-size="13" fill="#64748b">· 实际下载由远程服务器完成，可挂代理</text>
+</svg>
