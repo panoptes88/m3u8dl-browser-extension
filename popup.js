@@ -277,6 +277,7 @@ function renderResources() {
     const sizeStr = resource.size > 0 ? formatSize(resource.size) : '';
     const isSelected = selectedIndices.has(index);
     const isM3u8 = ['m3u8', 'm3u'].includes(ext);
+    const isPlayable = isM3u8 || ext === 'mp4';
     const titleAttr = resource.translatedTitle
       ? `${escapeHtml(originalTitle)}\n${escapeHtml(resource.translatedTitle)}`
       : escapeHtml(resource.url);
@@ -288,7 +289,7 @@ function renderResources() {
           <span class="resource-name" title="${titleAttr}">${escapeHtml(fileName)}</span>
           <span class="resource-size ${sizeStr ? '' : 'hide'}">${sizeStr}</span>
           <span class="resource-ext ${ext}">${ext}</span>
-          ${isM3u8 ? `<button class="btn-icon btn-play" data-index="${index}" title="预览"><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="6 3 20 12 6 21 6 3"/></svg></button>` : ''}
+          ${isPlayable ? `<button class="btn-icon btn-play" data-index="${index}" title="预览"><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="6 3 20 12 6 21 6 3"/></svg></button>` : ''}
           <button class="btn-icon btn-copy-url" data-index="${index}" title="复制链接"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
         </div>
         <div class="panel-body hide" id="panel-${index}">
