@@ -26,7 +26,8 @@
     "cookies",
     "activeTab",
     "unlimitedStorage",
-    "declarativeNetRequest"
+    "declarativeNetRequest",
+    "webNavigation"
   ],
   "web_accessible_resources": [
     {

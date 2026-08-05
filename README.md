@@ -4,12 +4,12 @@
 
 ## 功能特性
 
-- **资源嗅探**：自动识别网页中的视频/音频请求，支持 m3u8、mp4、ts、m4s、mpd、flv、webm、mp3 等常见格式，可识别 `.txt`/`.json` 伪装的 m3u8
-- **在线预览**：m3u8 资源可直接在弹窗中预览播放（hls.js），并显示清晰度、时长、分片数等信息
-- **一键下载**：勾选资源后发送到远程服务器，由 N_m3u8DL-RE 完成实际下载与合并
-- **代理支持**：预览和下载任务均可走 HTTP/HTTPS/SOCKS5 代理
-- **现代化界面**：统一的设计语言，自动跟随系统切换深色模式
-- **可配置嗅探类型**：可在设置中勾选需要嗅探的资源类型
+- 🔍 **资源嗅探** - 自动识别网页中的 m3u8、mp4、mpd 等媒体资源
+- ▶️ **在线预览** - m3u8/mp4 资源可直接预览播放
+- 📥 **一键下载** - 发送到远程服务器下载
+- 🌐 **代理支持** - HTTP/HTTPS/SOCKS5 代理，支持快捷开关
+- 🌍 **AI 翻译** - 使用 AI 翻译视频标题
+- 🎨 **深色模式** - 自动跟随系统切换
 
 ## 工作原理
 
@@ -17,60 +17,57 @@
 
 ![工作原理](images/principle.svg)
 
-1. `background.js`（Service Worker）通过 `chrome.webRequest` 监听网络请求，按扩展名 + Content-Type 判定媒体资源，按标签页分组去重后暂存内存
-2. 点击扩展图标，popup 拉取当前标签页的资源列表；预览时通过 `declarativeNetRequest` 注入 Referer 绕防盗链
-3. 发送任务时先登录服务器获取 `auth_token`，再调用 `POST /api/tasks` 创建下载任务
+## 快速开始
 
-## 安装
-
-1. 打开 Chrome，访问 `chrome://extensions/`
-2. 开启右上角「开发者模式」
-3. 点击「加载已解压的扩展程序」
-4. 选择本项目所在目录
-
-## 配置
-
-1. 右键扩展图标，选择「选项」打开设置页面
-2. 填写 N_m3u8DL-RE-WEB-UI 服务器地址（如 `http://192.168.1.100:8080`）
-3. 填写用户名和密码
-4. 点击「测试连接」验证
-
-## CORS 配置（重要）
-
-浏览器扩展的请求来源是 `chrome-extension://...`，服务器默认的 CORS 配置不允许此类来源。
-
-### 解决方法
-
-在 `docker-compose.yml` 中添加环境变量：
-
-```yaml
-environment:
-  - ALLOW_ORIGINS=*
-```
-
-然后重启容器：
+### 1. 部署服务器
 
 ```bash
-cd /data/m3u8dl
-docker compose down
-docker compose up -d
+docker run -d \
+  --name m3u8dl \
+  -p 8080:8080 \
+  -e ALLOW_INSECURE=true \
+  -e ALLOW_ORIGINS=* \
+  -e ADMIN_PASSWORD=admin123 \
+  -v ./db:/app/db \
+  -v ./downloads:/app/downloads \
+  ghcr.io/panoptes88/n_m3u8dl-re-web-ui:latest
 ```
 
-> **注意**：`ALLOW_ORIGINS=*` 表示允许所有来源访问。如果担心安全问题，可以设置为具体的值，但需要包含扩展的 origin（格式为 `chrome-extension://扩展ID`）。
+### 2. 安装插件
 
-## 使用
+1. 下载 [最新版本](https://github.com/panoptes88/m3u8dl-browser-extension/releases)
+2. 打开 `chrome://extensions/`，开启「开发者模式」
+3. 点击「加载已解压的扩展程序」，选择插件目录
+
+### 3. 配置插件
+
+右键扩展图标 → 选项 → 填写服务器地址、用户名、密码 → 测试连接 → 保存
+
+## 基本使用
 
 1. 打开包含视频的网页
 2. 播放视频（触发资源嗅探）
 3. 点击扩展图标查看嗅探到的资源
-4. 勾选要下载的资源（m3u8 资源可点击 ▶ 预览）
+4. 勾选要下载的资源
 5. 点击「发送到远程下载」
 
-## 调试
+![嗅探资源](images/plugin-sniff-resources.png)
 
-如果遇到问题，可以查看扩展的 Service Worker 日志（日志统一带 `[m3u8DL]` 前缀）：
+## 详细文档
 
-1. 访问 `chrome://extensions/`
-2. 找到 m3u8DL Sniffer
-3. 点击「Service Worker」链接
-4. 在打开的 DevTools 中查看 Console 日志
+📖 完整文档请查看 [Wiki](wiki/)
+
+- [部署教程](wiki/部署教程.md)
+- [插件安装](wiki/插件安装.md)
+- [使用教程](wiki/使用教程.md)
+- [高级配置](wiki/高级配置.md)
+- [常见问题](wiki/常见问题.md)
+
+## 相关项目
+
+- [N_m3u8DL-RE](https://github.com/nilaoda/N_m3u8DL-RE) - m3u8 下载器
+- [N_m3u8DL-RE-WEB-UI](https://github.com/panoptes88/N_m3u8DL-RE-WEB-UI) - Web 管理界面
+
+## 许可证
+
+MIT License

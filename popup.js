@@ -27,6 +27,18 @@ let proxyConfig = {
   password: ''
 };
 
+// AI 翻译配置
+let aiTranslateConfig = {
+  enable: false,
+  baseUrl: '',
+  modelId: '',
+  apiKey: '',
+  prompt: ''
+};
+
+// 翻译状态
+let isTranslating = false;
+
 // DOM 元素
 const elements = {
   status: document.getElementById('status'),
@@ -40,7 +52,8 @@ const elements = {
   btnClear: document.getElementById('btnClear'),
   btnSelectAll: document.getElementById('btnSelectAll'),
   btnSend: document.getElementById('btnSend'),
-  toast: document.getElementById('toast')
+  toast: document.getElementById('toast'),
+  proxyToggle: document.getElementById('proxyToggle')
 };
 
 
@@ -65,6 +78,56 @@ async function init() {
 
   // 更新连接状态
   updateConnectionStatus();
+
+  // 初始化代理开关
+  initProxyToggle();
+
+  // 监听页面加载完成事件，自动刷新资源列表
+  if (currentTabId) {
+    chrome.tabs.onUpdated.addListener(function(tabId, changeInfo) {
+      if (tabId === currentTabId && changeInfo.status === 'complete') {
+        // 页面加载完成，重新加载资源
+        loadResources();
+      }
+    });
+  }
+
+  // 监听来自 background 的资源更新消息
+  chrome.runtime.onMessage.addListener(function(message) {
+    if (message.type === 'resourceAdded' && message.tabId === currentTabId) {
+      // 新资源添加，重新加载资源列表
+      loadResources();
+    }
+  });
+
+  // 监听配置变化，自动更新
+  chrome.storage.onChanged.addListener(function(changes) {
+    // 检查是否有代理配置变化
+    if (changes.proxyEnable || changes.proxyType || changes.proxyHost || changes.proxyPort ||
+        changes.proxyAuth || changes.proxyUsername || changes.proxyPassword) {
+      // 重新加载配置
+      loadConfig().then(() => {
+        // 更新代理开关状态
+        updateProxyToggleState();
+        updateConnectionStatus();
+      });
+    }
+
+    // 检查是否有服务器配置变化
+    if (changes.server || changes.username || changes.password) {
+      loadConfig().then(() => {
+        updateConnectionStatus();
+        updateSelectedCount();
+      });
+    }
+
+    // 检查是否有 AI 翻译配置变化
+    if (changes.aiTranslateEnable || changes.aiBaseUrl || changes.aiModelId || changes.aiApiKey || changes.aiPrompt) {
+      loadConfig().then(() => {
+        updateConnectionStatus();
+      });
+    }
+  });
 }
 
 /**
@@ -73,7 +136,8 @@ async function init() {
 async function loadConfig() {
   return new Promise((resolve) => {
     chrome.storage.sync.get(
-      ['server', 'username', 'password', 'proxyEnable', 'proxyType', 'proxyHost', 'proxyPort', 'proxyAuth', 'proxyUsername', 'proxyPassword'],
+      ['server', 'username', 'password', 'proxyEnable', 'proxyType', 'proxyHost', 'proxyPort', 'proxyAuth', 'proxyUsername', 'proxyPassword',
+       'aiTranslateEnable', 'aiBaseUrl', 'aiModelId', 'aiApiKey', 'aiPrompt'],
       function(data) {
         serverConfig = {
           server: data.server || '',
@@ -88,6 +152,13 @@ async function loadConfig() {
           auth: data.proxyAuth || false,
           username: data.proxyUsername || '',
           password: data.proxyPassword || ''
+        };
+        aiTranslateConfig = {
+          enable: data.aiTranslateEnable || false,
+          baseUrl: data.aiBaseUrl || '',
+          modelId: data.aiModelId || '',
+          apiKey: data.aiApiKey || '',
+          prompt: data.aiPrompt || '作为一名专业的翻译官，请翻译标题为简体中文：保留关键信息，控制标题字数在25字以内，仅输出翻译后的内容，不要输出无关内容\n\n{text}'
         };
         resolve();
       }
@@ -106,6 +177,58 @@ function updateConnectionStatus() {
     statusText += ' | 代理: ' + proxyConfig.host;
   }
   elements.statusText.textContent = statusText;
+
+  // 显示/隐藏翻译按钮
+  const btnTranslate = document.getElementById('btnTranslate');
+  if (btnTranslate) {
+    if (aiTranslateConfig.enable && aiTranslateConfig.baseUrl && aiTranslateConfig.modelId && aiTranslateConfig.apiKey) {
+      btnTranslate.classList.remove('hide');
+    } else {
+      btnTranslate.classList.add('hide');
+    }
+  }
+}
+
+/**
+ * 初始化代理开关
+ */
+function initProxyToggle() {
+  // 设置初始状态
+  updateProxyToggleState();
+
+  // 监听开关变化
+  elements.proxyToggle.addEventListener('change', async function() {
+    const isEnabled = this.checked;
+
+    // 保存到配置
+    await new Promise((resolve) => {
+      chrome.storage.sync.set({ proxyEnable: isEnabled }, resolve);
+    });
+
+    // 更新本地配置
+    proxyConfig.enable = isEnabled;
+
+    // 更新状态显示
+    updateConnectionStatus();
+
+    showToast(isEnabled ? '代理已开启' : '代理已关闭');
+  });
+}
+
+/**
+ * 更新代理开关状态
+ */
+function updateProxyToggleState() {
+  elements.proxyToggle.checked = proxyConfig.enable;
+
+  // 如果没有配置代理，禁用开关
+  if (!proxyConfig.host || !proxyConfig.port) {
+    elements.proxyToggle.disabled = true;
+    elements.proxyToggle.title = '请先在设置中配置代理';
+  } else {
+    elements.proxyToggle.disabled = false;
+    elements.proxyToggle.title = '代理开关';
+  }
 }
 
 /**
@@ -149,19 +272,24 @@ function renderResources() {
   // 生成列表 HTML
   const html = resources.map((resource, index) => {
     const ext = resource.ext || 'unknown';
-    const fileName = resource.title || getFileName(resource.url);
+    const originalTitle = resource.originalTitle || resource.title || getFileName(resource.url);
+    const fileName = resource.translatedTitle || originalTitle;
     const sizeStr = resource.size > 0 ? formatSize(resource.size) : '';
     const isSelected = selectedIndices.has(index);
     const isM3u8 = ['m3u8', 'm3u'].includes(ext);
+    const isPlayable = isM3u8 || ext === 'mp4';
+    const titleAttr = resource.translatedTitle
+      ? `${escapeHtml(originalTitle)}\n${escapeHtml(resource.translatedTitle)}`
+      : escapeHtml(resource.url);
 
     return `
       <div class="resource-panel" data-index="${index}">
         <div class="panel-heading">
           <input type="checkbox" class="check-item" ${isSelected ? 'checked' : ''} data-index="${index}">
-          <span class="resource-name" title="${escapeHtml(resource.url)}">${escapeHtml(fileName)}</span>
+          <span class="resource-name" title="${titleAttr}">${escapeHtml(fileName)}</span>
           <span class="resource-size ${sizeStr ? '' : 'hide'}">${sizeStr}</span>
           <span class="resource-ext ${ext}">${ext}</span>
-          ${isM3u8 ? `<button class="btn-icon btn-play" data-index="${index}" title="预览"><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="6 3 20 12 6 21 6 3"/></svg></button>` : ''}
+          ${isPlayable ? `<button class="btn-icon btn-play" data-index="${index}" title="预览"><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="6 3 20 12 6 21 6 3"/></svg></button>` : ''}
           <button class="btn-icon btn-copy-url" data-index="${index}" title="复制链接"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
         </div>
         <div class="panel-body hide" id="panel-${index}">
@@ -236,8 +364,29 @@ function bindEvents() {
   elements.btnRefresh.addEventListener('click', async function() {
     // 清理 HLS 实例
     cleanupResources();
-    await loadResources();
-    showToast('已刷新');
+
+    // 清除 background 中该 tab 的资源
+    await new Promise((resolve) => {
+      chrome.runtime.sendMessage(
+        { type: 'clearResources', tabId: currentTabId },
+        resolve
+      );
+    });
+
+    // 刷新页面
+    if (currentTabId) {
+      chrome.tabs.reload(currentTabId);
+      // 等待页面加载完成后重新加载资源
+      setTimeout(async () => {
+        await loadResources();
+        showToast('已刷新');
+      }, 1000);
+    } else {
+      resources = [];
+      selectedIndices.clear();
+      renderResources();
+      showToast('已刷新');
+    }
   });
 
   // 清空按钮
@@ -263,6 +412,12 @@ function bindEvents() {
     }
     renderResources();
   });
+
+  // 翻译按钮
+  const btnTranslate = document.getElementById('btnTranslate');
+  if (btnTranslate) {
+    btnTranslate.addEventListener('click', handleTranslate);
+  }
 
   // 发送按钮
   elements.btnSend.addEventListener('click', handleSend);
@@ -578,6 +733,9 @@ async function handleSend() {
     return;
   }
 
+  // 重新加载最新的代理配置
+  await loadConfig();
+
   const selectedResources = Array.from(selectedIndices).map(i => resources[i]);
 
   elements.btnSend.disabled = true;
@@ -651,12 +809,152 @@ async function handleSend() {
 }
 
 /**
+ * 处理翻译标题
+ */
+async function handleTranslate() {
+  if (isTranslating) return;
+
+  if (!aiTranslateConfig.enable || !aiTranslateConfig.baseUrl || !aiTranslateConfig.modelId || !aiTranslateConfig.apiKey) {
+    showToast('请先配置 AI 翻译', 'error');
+    chrome.runtime.openOptionsPage();
+    return;
+  }
+
+  // 获取需要翻译的资源（已选中的或全部）
+  const indicesToTranslate = selectedIndices.size > 0
+    ? Array.from(selectedIndices)
+    : resources.map((_, i) => i);
+
+  if (indicesToTranslate.length === 0) {
+    showToast('没有需要翻译的资源', 'error');
+    return;
+  }
+
+  isTranslating = true;
+  const btnTranslate = document.getElementById('btnTranslate');
+  if (btnTranslate) {
+    btnTranslate.disabled = true;
+    btnTranslate.querySelector('.btn-label').textContent = '翻译中...';
+  }
+
+  let successCount = 0;
+  let failCount = 0;
+
+  for (const index of indicesToTranslate) {
+    const resource = resources[index];
+    if (!resource) continue;
+
+    const title = resource.title || getFileName(resource.url);
+    if (!title) continue;
+
+    try {
+      console.log(`[翻译] 开始翻译 #${index}: "${title}"`);
+      const translatedTitle = await callAiTranslate(title);
+
+      // 验证翻译结果
+      if (!translatedTitle || translatedTitle.trim() === '') {
+        console.error(`[翻译] #${index} 翻译结果为空`);
+        failCount++;
+        continue;
+      }
+
+      // 保存原始标题和翻译后的标题
+      if (!resource.originalTitle) {
+        resource.originalTitle = title;
+      }
+      resource.translatedTitle = translatedTitle;
+      successCount++;
+      console.log(`[翻译] #${index} 成功: "${title}" → "${translatedTitle}"`);
+    } catch (e) {
+      console.error(`[翻译] #${index} 失败:`, e.message);
+      failCount++;
+    }
+  }
+
+  // 重新渲染资源列表
+  console.log('[翻译] 翻译完成，重新渲染资源列表');
+  console.log('[翻译] 成功:', successCount, '失败:', failCount);
+  renderResources();
+
+  isTranslating = false;
+  if (btnTranslate) {
+    btnTranslate.disabled = false;
+    btnTranslate.querySelector('.btn-label').textContent = '翻译';
+  }
+
+  if (failCount === 0) {
+    showToast(`成功翻译 ${successCount} 个标题`, 'success');
+  } else {
+    showToast(`${successCount} 成功，${failCount} 失败`, 'error');
+  }
+}
+
+/**
+ * 调用 AI 翻译 API
+ */
+async function callAiTranslate(text) {
+  const url = `${aiTranslateConfig.baseUrl}/v1/chat/completions`;
+
+  const prompt = aiTranslateConfig.prompt.replace('{text}', text);
+
+  console.log('[翻译] 请求 URL:', url);
+  console.log('[翻译] 请求内容:', prompt.substring(0, 100) + '...');
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${aiTranslateConfig.apiKey}`
+    },
+    body: JSON.stringify({
+      model: aiTranslateConfig.modelId,
+      messages: [
+        {
+          role: 'user',
+          content: prompt
+        }
+      ],
+      temperature: 0.3,
+      max_tokens: 1000
+    })
+  });
+
+  console.log('[翻译] 响应状态:', response.status);
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    console.error('[翻译] API 错误:', errorData);
+    throw new Error(errorData.error?.message || `HTTP ${response.status}`);
+  }
+
+  const data = await response.json();
+  console.log('[翻译] API 响应:', JSON.stringify(data).substring(0, 200));
+
+  if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+    console.error('[翻译] 无效的 API 响应:', data);
+    throw new Error('无效的 API 响应');
+  }
+
+  const result = data.choices[0].message.content.trim();
+  console.log('[翻译] 翻译结果:', result);
+
+  if (!result) {
+    throw new Error('翻译结果为空');
+  }
+
+  return result;
+}
+
+/**
  * 生成输出文件名
  */
 function generateOutputName(resource) {
   let name = '';
 
-  if (resource.title && resource.title.trim()) {
+  // 优先使用翻译后的标题
+  if (resource.translatedTitle && resource.translatedTitle.trim()) {
+    name = resource.translatedTitle.trim();
+  } else if (resource.title && resource.title.trim()) {
     name = resource.title.trim();
   } else {
     name = getFileName(resource.url);
