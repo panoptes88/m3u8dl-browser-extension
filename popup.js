@@ -100,6 +100,11 @@ async function init() {
     }
   });
 
+  // 监听 popup 关闭，清除请求头规则
+  window.addEventListener('beforeunload', function() {
+    chrome.runtime.sendMessage({ type: 'clearRequestHeaders' });
+  });
+
   // 监听配置变化，自动更新
   chrome.storage.onChanged.addListener(function(changes) {
     // 检查是否有代理配置变化
