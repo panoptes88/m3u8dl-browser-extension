@@ -26,50 +26,68 @@
 
 ### 第一步：部署 N_m3u8DL-RE-WEB-UI 服务器
 
-#### 1.1 创建目录
+#### 方式一：快速 Docker 运行
 
 ```bash
 mkdir -p /data/m3u8dl
 cd /data/m3u8dl
+
+docker run -d \
+  --name m3u8dl \
+  -p 8080:8080 \
+  -e ALLOW_INSECURE=true \
+  -e ALLOW_ORIGINS=* \
+  -e ADMIN_PASSWORD=admin123 \
+  -v ./db:/app/db \
+  -v ./downloads:/app/downloads \
+  ghcr.io/panoptes88/n_m3u8dl-re-web-ui:latest
 ```
 
-#### 1.2 创建 docker-compose.yml
+> **国内用户**：可将 `ghcr.io` 替换为 `ghcr.1ms.run` 镜像加速
+
+#### 方式二：Docker Compose（推荐）
+
+1. 创建目录并下载配置文件：
+
+```bash
+mkdir -p /data/m3u8dl
+cd /data/m3u8dl
+
+# 下载 docker-compose.yml
+curl -O https://raw.githubusercontent.com/panoptes88/N_m3u8DL-RE-WEB-UI/main/docker-compose.yml
+```
+
+2. 编辑 `docker-compose.yml`，添加浏览器扩展所需的 CORS 配置：
 
 ```yaml
-version: '3.8'
-
-services:
-  m3u8dl:
-    image: htnaoao/m3u8dl-web-ui:latest
-    container_name: m3u8dl-web-ui
-    restart: unless-stopped
-    ports:
-      - "8080:8080"
-    volumes:
-      - ./data:/app/downloads
-      - ./config:/app/config
-    environment:
-      - ALLOW_ORIGINS=*
-      - USERNAME=admin
-      - PASSWORD=your_password_here
+environment:
+  - ALLOW_ORIGINS=*
+  - ADMIN_PASSWORD=your_password_here
 ```
 
-> **说明**：
-> - `8080:8080`：Web UI 端口
-> - `./data:/app/downloads`：下载文件存储目录
-> - `./config:/app/config`：配置文件目录
-> - `ALLOW_ORIGINS=*`：允许浏览器扩展访问（重要！）
-> - `USERNAME` 和 `PASSWORD`：登录账号密码
-
-#### 1.3 启动服务
+3. 启动服务：
 
 ```bash
 docker compose up -d
 ```
 
-#### 1.4 验证服务
+#### 环境变量说明
 
-打开浏览器访问 `http://your-server-ip:8080`，使用配置的用户名密码登录。
+| 变量 | 默认值 | 说明 |
+|---|---|---|
+| `PORT` | 8080 | 服务端口 |
+| `DOWNLOAD_DIR` | ./downloads | 下载目录 |
+| `ADMIN_PASSWORD` | admin123 | 管理员密码 |
+| `TZ` | Asia/Shanghai | 时区 |
+| `ALLOW_INSECURE` | false | 允许 HTTP 访问（需设为 `true`） |
+| `ALLOW_ORIGINS` | localhost:8080 | CORS 来源（**必须设置为 `*` 允许扩展访问**） |
+| `DOWNLOAD_TIMEOUT` | 0 | 下载超时（秒），0=无限制 |
+
+#### 验证服务
+
+打开浏览器访问 `http://your-server-ip:8080`，使用以下默认凭据登录：
+- **用户名**：`admin`
+- **密码**：`admin123`（或你设置的密码）
 
 ### 第二步：安装浏览器插件
 
@@ -106,7 +124,7 @@ git clone https://github.com/panoptes88/m3u8dl-browser-extension.git
 在「远程服务器配置」中填写：
 - **服务器地址**：`http://your-server-ip:8080`
 - **用户名**：`admin`
-- **密码**：`your_password_here`
+- **密码**：`admin123`（或你设置的密码）
 
 点击「测试连接」验证配置是否正确。
 
@@ -225,7 +243,13 @@ git clone https://github.com/panoptes88/m3u8dl-browser-extension.git
 
 ### 解决方法
 
-在 `docker-compose.yml` 中添加环境变量：
+在启动 Docker 时设置环境变量：
+
+```bash
+-e ALLOW_ORIGINS=*
+```
+
+或者在 `docker-compose.yml` 中添加：
 
 ```yaml
 environment:
