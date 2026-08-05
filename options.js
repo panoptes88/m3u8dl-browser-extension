@@ -23,7 +23,16 @@ const elements = {
   proxyAuth: document.getElementById('proxyAuth'),
   proxyAuthSettings: document.getElementById('proxyAuthSettings'),
   proxyUsername: document.getElementById('proxyUsername'),
-  proxyPassword: document.getElementById('proxyPassword')
+  proxyPassword: document.getElementById('proxyPassword'),
+  // AI 翻译配置
+  aiTranslateEnable: document.getElementById('aiTranslateEnable'),
+  aiTranslateSettings: document.getElementById('aiTranslateSettings'),
+  aiBaseUrl: document.getElementById('aiBaseUrl'),
+  aiModelId: document.getElementById('aiModelId'),
+  aiApiKey: document.getElementById('aiApiKey'),
+  aiPrompt: document.getElementById('aiPrompt'),
+  btnTestAi: document.getElementById('btnTestAi'),
+  aiTestResult: document.getElementById('aiTestResult')
 };
 
 // 默认支持的资源类型
@@ -68,9 +77,19 @@ async function init() {
   elements.proxyUsername.value = config.proxyUsername || '';
   elements.proxyPassword.value = config.proxyPassword || '';
 
+  // AI 翻译配置
+  elements.aiTranslateEnable.checked = config.aiTranslateEnable || false;
+  elements.aiBaseUrl.value = config.aiBaseUrl || '';
+  elements.aiModelId.value = config.aiModelId || '';
+  elements.aiApiKey.value = config.aiApiKey || '';
+  elements.aiPrompt.value = config.aiPrompt || '请将以下内容翻译成中文，只返回翻译结果，不要添加其他内容：\n\n{text}';
+
   // 显示/隐藏代理设置
   toggleProxySettings();
   toggleProxyAuthSettings();
+
+  // 显示/隐藏 AI 翻译设置
+  toggleAiTranslateSettings();
 
   // 渲染资源类型网格
   renderExtGrid(config.enabledExtensions);
@@ -86,7 +105,8 @@ function loadConfig() {
   return new Promise((resolve) => {
     chrome.storage.sync.get(
       ['server', 'username', 'password', 'threadCount', 'retryCount', 'autoSelect', 'enabledExtensions',
-       'proxyEnable', 'proxyType', 'proxyHost', 'proxyPort', 'proxyAuth', 'proxyUsername', 'proxyPassword'],
+       'proxyEnable', 'proxyType', 'proxyHost', 'proxyPort', 'proxyAuth', 'proxyUsername', 'proxyPassword',
+       'aiTranslateEnable', 'aiBaseUrl', 'aiModelId', 'aiApiKey', 'aiPrompt'],
       function(data) {
         resolve(data);
       }
@@ -139,7 +159,13 @@ function saveConfig() {
     proxyPort: parseInt(elements.proxyPort.value) || 0,
     proxyAuth: elements.proxyAuth.checked,
     proxyUsername: elements.proxyUsername.value.trim(),
-    proxyPassword: elements.proxyPassword.value
+    proxyPassword: elements.proxyPassword.value,
+    // AI 翻译配置
+    aiTranslateEnable: elements.aiTranslateEnable.checked,
+    aiBaseUrl: elements.aiBaseUrl.value.trim().replace(/\/+$/, ''),
+    aiModelId: elements.aiModelId.value.trim(),
+    aiApiKey: elements.aiApiKey.value,
+    aiPrompt: elements.aiPrompt.value
   };
 
   return new Promise((resolve) => {
@@ -172,6 +198,17 @@ function toggleProxyAuthSettings() {
 }
 
 /**
+ * 切换 AI 翻译设置显示
+ */
+function toggleAiTranslateSettings() {
+  if (elements.aiTranslateEnable.checked) {
+    elements.aiTranslateSettings.classList.remove('hide');
+  } else {
+    elements.aiTranslateSettings.classList.add('hide');
+  }
+}
+
+/**
  * 绑定事件
  */
 function bindEvents() {
@@ -186,6 +223,12 @@ function bindEvents() {
 
   // 代理认证切换
   elements.proxyAuth.addEventListener('change', toggleProxyAuthSettings);
+
+  // AI 翻译启用切换
+  elements.aiTranslateEnable.addEventListener('change', toggleAiTranslateSettings);
+
+  // 测试 AI 翻译按钮
+  elements.btnTestAi.addEventListener('click', handleTestAiTranslate);
 }
 
 /**
@@ -261,6 +304,85 @@ function showSaveResult(message) {
   setTimeout(() => {
     elements.saveResult.className = 'save-result';
   }, 2000);
+}
+
+/**
+ * 测试 AI 翻译
+ */
+async function handleTestAiTranslate() {
+  const baseUrl = elements.aiBaseUrl.value.trim();
+  const modelId = elements.aiModelId.value.trim();
+  const apiKey = elements.aiApiKey.value;
+  const prompt = elements.aiPrompt.value;
+
+  if (!baseUrl || !modelId || !apiKey) {
+    showAiTestResult('请填写完整的 AI 配置', 'error');
+    return;
+  }
+
+  // 禁用按钮
+  elements.btnTestAi.disabled = true;
+  elements.btnTestAi.querySelector('.btn-label').textContent = '测试中...';
+
+  try {
+    const testText = 'Hello, World!';
+    const translatedText = await callAiTranslate(testText, baseUrl, modelId, apiKey, prompt);
+    showAiTestResult(`翻译成功！"${testText}" → "${translatedText}"`, 'success');
+  } catch (e) {
+    showAiTestResult(`翻译失败: ${e.message}`, 'error');
+  } finally {
+    elements.btnTestAi.disabled = false;
+    elements.btnTestAi.querySelector('.btn-label').textContent = '测试翻译';
+  }
+}
+
+/**
+ * 调用 AI 翻译 API
+ */
+async function callAiTranslate(text, baseUrl, modelId, apiKey, prompt) {
+  const url = `${baseUrl}/v1/chat/completions`;
+
+  const systemPrompt = prompt.replace('{text}', text);
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`
+    },
+    body: JSON.stringify({
+      model: modelId,
+      messages: [
+        {
+          role: 'user',
+          content: systemPrompt
+        }
+      ],
+      temperature: 0.3,
+      max_tokens: 1000
+    })
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error?.message || `HTTP ${response.status}`);
+  }
+
+  const data = await response.json();
+
+  if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+    throw new Error('无效的 API 响应');
+  }
+
+  return data.choices[0].message.content.trim();
+}
+
+/**
+ * 显示 AI 测试结果
+ */
+function showAiTestResult(message, type) {
+  elements.aiTestResult.textContent = message;
+  elements.aiTestResult.className = 'test-result ' + type;
 }
 
 // 初始化

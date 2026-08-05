@@ -339,6 +339,20 @@ chrome.tabs.onRemoved.addListener(function(tabId) {
   state.tabResources.delete(tabId);
 });
 
+// 页面导航时清理资源（刷新或跳转）
+chrome.webNavigation.onCommitted.addListener(function(details) {
+  // 只处理主框架（frameId === 0）的刷新或跳转
+  if (details.frameId === 0 && details.tabId > 0) {
+    // 刷新：reload
+    // 跳转：typed, link, auto_bookmark, auto_subframe, manual_subframe, generated, auto_toplevel, form_submit, keyword, keyword_generated
+    const transitionTypes = ['reload', 'link', 'typed', 'form_submit', 'auto_bookmark', 'generated'];
+    if (transitionTypes.includes(details.transitionType)) {
+      state.tabResources.delete(details.tabId);
+      console.log('[m3u8DL] 页面刷新/跳转，清除资源:', details.tabId);
+    }
+  }
+});
+
 // Tab 标题变化时更新资源标题
 chrome.tabs.onUpdated.addListener(function(tabId, changeInfo, tab) {
   if (changeInfo.title && state.tabResources.has(tabId)) {
