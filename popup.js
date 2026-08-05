@@ -158,7 +158,7 @@ async function loadConfig() {
           baseUrl: data.aiBaseUrl || '',
           modelId: data.aiModelId || '',
           apiKey: data.aiApiKey || '',
-          prompt: data.aiPrompt || '请将以下内容翻译成中文，只返回翻译结果，不要添加其他内容：\n\n{text}'
+          prompt: data.aiPrompt || '作为一名专业的翻译官，请翻译标题为简体中文：保留关键信息，控制标题字数在25字以内，仅输出翻译后的内容，不要输出无关内容\n\n{text}'
         };
         resolve();
       }
