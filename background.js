@@ -36,6 +36,16 @@ async function loadEnabledExtensions() {
 // 初始化时加载配置
 loadEnabledExtensions();
 
+// 定期清理 declarativeNetRequest 规则（每5分钟）
+setInterval(function() {
+  chrome.declarativeNetRequest.getSessionRules(function(rules) {
+    if (rules.length > 0) {
+      console.log('[m3u8DL] 清理 session rules:', rules.length);
+      chrome.declarativeNetRequest.updateSessionRules({ removeRuleIds: rules.map(r => r.id) });
+    }
+  });
+}, 5 * 60 * 1000);
+
 // 监听配置变化
 chrome.storage.onChanged.addListener(function(changes) {
   if (changes.enabledExtensions) {
@@ -252,7 +262,7 @@ chrome.webRequest.onSendHeaders.addListener(
   ['requestHeaders', chrome.webRequest.OnBeforeSendHeadersOptions.EXTRA_HEADERS].filter(Boolean)
 );
 
-// 监听响应
+// 监听响应 - 只监听媒体资源类型
 chrome.webRequest.onResponseStarted.addListener(
   function(details) {
     try {
@@ -348,7 +358,9 @@ chrome.webNavigation.onCommitted.addListener(function(details) {
     const transitionTypes = ['reload', 'link', 'typed', 'form_submit', 'auto_bookmark', 'generated'];
     if (transitionTypes.includes(details.transitionType)) {
       state.tabResources.delete(details.tabId);
-      console.log('[m3u8DL] 页面刷新/跳转，清除资源:', details.tabId);
+      // 清理 declarativeNetRequest 规则
+      chrome.declarativeNetRequest.updateSessionRules({ removeRuleIds: [1] });
+      console.log('[m3u8DL] 页面刷新/跳转，清除资源和规则:', details.tabId);
     }
   }
 });
