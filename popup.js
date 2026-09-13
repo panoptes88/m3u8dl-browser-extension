@@ -361,7 +361,8 @@ function bindEvents() {
       // 切换复选框
       const checkbox = heading.querySelector('.check-item');
       checkbox.checked = !checkbox.checked;
-      checkbox.dispatchEvent(new Event('change'));
+      // 必须可冒泡，否则无法被 resourceList 上的 change 委托捕获
+      checkbox.dispatchEvent(new Event('change', { bubbles: true }));
     }
   });
 
