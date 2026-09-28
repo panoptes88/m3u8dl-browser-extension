@@ -11,6 +11,8 @@ let resources = [];
 let selectedIndices = new Set();
 // 已展开预览面板的资源索引（重新渲染后用于恢复展开状态）
 let openPanels = new Set();
+// 正在预览的 hls.js 实例，按资源索引存放（用于销毁，避免后台持续拉流）
+const hlsInstances = new Map();
 // 服务器配置
 let serverConfig = {
   server: '',
@@ -310,6 +312,26 @@ async function loadResources() {
 }
 
 /**
+ * 就地更新资源标题（翻译完成后调用）
+ * 不重建列表：innerHTML 重建会销毁 <video> 元素和挂在其上的 hls.js 实例，
+ * 导致正在播放的预览被关闭。
+ */
+function updateResourceNames() {
+  elements.resourceList.querySelectorAll('.resource-panel').forEach(panel => {
+    const index = parseInt(panel.dataset.index);
+    const resource = resources[index];
+    const nameEl = panel.querySelector('.resource-name');
+    if (!resource || !nameEl) return;
+
+    const originalTitle = resource.originalTitle || resource.title || getFileName(resource.url);
+    nameEl.textContent = resource.translatedTitle || originalTitle;
+    nameEl.title = resource.translatedTitle
+      ? `${originalTitle}\n${resource.translatedTitle}`
+      : resource.url;
+  });
+}
+
+/**
  * 渲染资源列表
  */
 function renderResources() {
@@ -329,6 +351,15 @@ function renderResources() {
   }
 
   elements.emptyState.style.display = 'none';
+
+  // 重新渲染前记住哪些面板已经加载过内容，避免重建后出现空面板
+  const loadedPanels = new Set();
+  elements.resourceList.querySelectorAll('.media-info').forEach(mediaInfo => {
+    if (mediaInfo.dataset.loaded === 'true') {
+      const index = mediaInfo.id.replace('media-info-', '');
+      loadedPanels.add(index);
+    }
+  });
 
   // 生成列表 HTML
   const html = resources.map((resource, index) => {
@@ -356,7 +387,7 @@ function renderResources() {
           <button type="button" class="btn-icon btn-copy-url" data-index="${index}" aria-label="复制链接" title="复制链接"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
         </div>
         <div class="panel-body${isOpen ? '' : ' hide'}" id="panel-${index}">
-          <div class="media-info" id="media-info-${index}" data-loaded="false">
+          <div class="media-info" id="media-info-${index}" data-loaded="${loadedPanels.has(String(index)) ? 'true' : 'false'}">
             <span class="info-url">${escapeHtml(resource.url)}</span>
           </div>
           <video class="preview-video hide" id="video-${index}" controls></video>
@@ -477,12 +508,19 @@ function bindEvents() {
 
   // 全选按钮
   elements.btnSelectAll.addEventListener('click', function() {
-    if (selectedIndices.size === resources.length) {
-      selectedIndices.clear();
-    } else {
+    const selectAll = selectedIndices.size !== resources.length;
+    if (selectAll) {
       resources.forEach((_, i) => selectedIndices.add(i));
+    } else {
+      selectedIndices.clear();
     }
-    renderResources();
+
+    // 只同步复选框，不重建列表（重建会销毁正在播放的 <video>）
+    elements.resourceList.querySelectorAll('.resource-panel').forEach(panel => {
+      const checkbox = panel.querySelector('.check-item');
+      if (checkbox) checkbox.checked = selectedIndices.has(parseInt(panel.dataset.index));
+    });
+    updateSelectedCount();
   });
 
   // 翻译按钮
@@ -511,10 +549,11 @@ function togglePanel(index) {
     if (panelEl) panelEl.classList.remove('open');
     if (playBtn) playBtn.setAttribute('aria-expanded', 'false');
     openPanels.delete(index);
-    // 暂停视频
+    // 暂停视频并销毁 hls 实例，停止后台拉流
     if (video && !video.paused) {
       video.pause();
     }
+    destroyHls(index);
     return;
   }
 
@@ -529,6 +568,16 @@ function togglePanel(index) {
     mediaInfo.dataset.loaded = 'true';
     loadVideoInfo(index);
   }
+}
+
+/**
+ * 销毁指定资源的 hls.js 实例
+ */
+function destroyHls(index) {
+  const hls = hlsInstances.get(index);
+  if (!hls) return;
+  try { hls.destroy(); } catch (e) { console.warn('[m3u8DL] 销毁 HLS 实例失败:', e); }
+  hlsInstances.delete(index);
 }
 
 /**
@@ -580,6 +629,9 @@ async function loadVideoInfo(index) {
 
       const hlsConfig = { enableWorker: false };
       const hls = new Hls(hlsConfig);
+      // 记录实例，便于收起面板/清空列表时销毁，避免后台持续拉流
+      destroyHls(index);
+      hlsInstances.set(index, hls);
       hls.loadSource(resource.url);
       hls.attachMedia(video);
 
@@ -621,7 +673,7 @@ async function loadVideoInfo(index) {
       // 错误处理 - 失败时回退到解析模式
       hls.on(Hls.Events.ERROR, function(event, data) {
         if (data.fatal) {
-          hls.destroy();
+          destroyHls(index);
           chrome.runtime.sendMessage({ type: 'clearRequestHeaders' });
           console.warn('[m3u8DL] HLS 播放失败，回退到解析模式');
           setMediaStatus(mediaInfo, '');
@@ -988,10 +1040,11 @@ async function handleTranslate() {
     }
   }
 
-  // 重新渲染资源列表
-  console.log('[翻译] 翻译完成，重新渲染资源列表');
+  // 只更新标题文本，不重建列表
+  // （renderResources 会重建 innerHTML，销毁正在播放的 <video> 与 hls.js 实例）
+  console.log('[翻译] 翻译完成，就地更新标题');
   console.log('[翻译] 成功:', successCount, '失败:', failCount);
-  renderResources();
+  updateResourceNames();
 
   isTranslating = false;
   if (btnTranslate) {
@@ -1247,7 +1300,9 @@ function bindToastEvents() {
  * 清理资源
  */
 function cleanupResources() {
-  // 预留清理逻辑
+  // 销毁所有预览用的 hls 实例
+  Array.from(hlsInstances.keys()).forEach(destroyHls);
+  openPanels.clear();
 }
 
 // 初始化

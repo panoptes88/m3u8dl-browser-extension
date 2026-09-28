@@ -37,6 +37,7 @@ images/            # README 用截图
   - m3u8 资源支持预览：优先用 hls.js 播放（先通过 `setRequestHeaders` 注入 Referer），失败时回退到「解析模式」——经 background 代理（`fetchM3u8`）拉取 m3u8 文本并手工解析 master/media playlist（`parseM3u8Content`）。
   - 发送任务时构造 `{ url, output_name, headers(仅Referer), auto_select, thread_count, retry_count, custom_proxy? }`；其中 `auto_select`/`thread_count`/`retry_count` 取自设置页保存的值（`downloadParams`，默认值在 `defaults.js`），多选发送是串行的并显示 `发送中 x/y` 进度。
   - UI 状态：`loadResources()` 拉取期间空状态显示「正在检测媒体资源...」；预览面板显示「正在加载预览.../正在解析 m3u8...」；展开的卡片通过 `openPanels` 在重渲染后保持展开高亮；`showToast()` 普通提示 2 秒、成功/失败提示 5 秒，悬停暂停、可点 × 关闭。
+  - **翻译标题、全选这类只改局部状态的操作用「就地更新」（`updateResourceNames()` 等），不要调用 `renderResources()`**：它会重建 `resourceList.innerHTML`，连带销毁正在播放的 `<video>` 和挂在它上面的 hls.js 实例（表现为"点了翻译/全选，预览被关掉"）。`hlsInstances` 按索引保存实例，收起面板或清空列表时通过 `destroyHls()` 销毁，避免后台持续拉流。
 
 - **`options.js`**
   - 读写 `chrome.storage.sync` 中的配置：`server`、`username`、`password`、`enabledExtensions`、`proxy*`（代理类型/地址/端口/认证）、`threadCount`、`retryCount`、`autoSelect`、`ai*`（AI 翻译）。
