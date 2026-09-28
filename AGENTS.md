@@ -17,6 +17,7 @@ manifest.json      # MV3 清单：权限、service worker、popup、options 页
 background.js      # 后台 Service Worker：嗅探逻辑 + 与远程服务器通信
 popup.html/.js/.css  # 弹窗 UI：展示嗅探到的资源、预览、发送下载任务
 options.html/.js/.css # 设置页：服务器、嗅探类型、代理、下载参数配置
+defaults.js        # popup 与 options 共用的默认配置（默认提示词、下载参数）
 lib/hls.min.js     # hls.js 第三方库（请勿修改）
 icons/             # 扩展图标
 images/            # README 用截图
@@ -34,11 +35,13 @@ images/            # README 用截图
 - **`popup.js`**
   - 从 background 拉取当前 tab 的资源列表并渲染；支持勾选、全选、复制链接、清空。
   - m3u8 资源支持预览：优先用 hls.js 播放（先通过 `setRequestHeaders` 注入 Referer），失败时回退到「解析模式」——经 background 代理（`fetchM3u8`）拉取 m3u8 文本并手工解析 master/media playlist（`parseM3u8Content`）。
-  - 发送任务时构造 `{ url, output_name, headers(仅Referer), auto_select, thread_count, retry_count, custom_proxy? }`。
+  - 发送任务时构造 `{ url, output_name, headers(仅Referer), auto_select, thread_count, retry_count, custom_proxy? }`；其中 `auto_select`/`thread_count`/`retry_count` 取自设置页保存的值（`downloadParams`，默认值在 `defaults.js`），多选发送是串行的并显示 `发送中 x/y` 进度。
+  - UI 状态：`loadResources()` 拉取期间空状态显示「正在检测媒体资源...」；预览面板显示「正在加载预览.../正在解析 m3u8...」；展开的卡片通过 `openPanels` 在重渲染后保持展开高亮；`showToast()` 普通提示 2 秒、成功/失败提示 5 秒，悬停暂停、可点 × 关闭。
 
 - **`options.js`**
-  - 读写 `chrome.storage.sync` 中的配置：`server`、`username`、`password`、`enabledExtensions`、`proxy*`（代理类型/地址/端口/认证）、`threadCount`、`retryCount`、`autoSelect`。
+  - 读写 `chrome.storage.sync` 中的配置：`server`、`username`、`password`、`enabledExtensions`、`proxy*`（代理类型/地址/端口/认证）、`threadCount`、`retryCount`、`autoSelect`、`ai*`（AI 翻译）。
   - 「测试连接」通过 background 的 `testConnection` 消息完成。
+  - 保存入口固定为页面底部的 `.save-bar`；任何输入变化都会通过 `setDirty(true)` 在页头与保存栏显示「有未保存的修改」。默认值统一取自 `defaults.js`（`DEFAULT_AI_PROMPT` 等），不要在页面里重复写字面量。
 
 ## 开发、调试与测试
 
@@ -57,6 +60,14 @@ images/            # README 用截图
 - background 中 Chrome 回调式 API 常包一层 `new Promise` 以便 async/await；popup/options 中 `chrome.runtime.sendMessage` 也统一包成 Promise 使用。
 - 配置持久化用 `chrome.storage.sync`；`authToken` 缓存用 `chrome.storage.local`。
 - 展示用户可控字符串前用 `escapeHtml()` 转义（popup 渲染资源名/URL 时），避免注入。
+
+## UI 约定
+
+- 配色沿用 `popup.css` / `options.css` 顶部的 CSS 变量（靛蓝 `--primary` 主题 + `prefers-color-scheme` 暗色），不要新增硬编码色值。
+- 所有需要"耗时等待"的操作都要给出进行中反馈（文案或进度），不要让界面看起来卡住：例如发送任务显示 `发送中 x/y`，预览显示"正在加载预览..."。
+- 纯图标按钮必须带 `title` + `aria-label`，装饰性 SVG 加 `aria-hidden="true"`；键盘焦点用 `:focus-visible`（已在两个 CSS 里统一处理）。
+- 动效需在 `prefers-reduced-motion: reduce` 下失效（已在两个 CSS 末尾统一处理）。
+- 新增设置项时，默认值放进 `defaults.js`，并在 `options.js` 的 `resetToDefaults()` 里一并复位。
 
 ## 安全注意事项
 

@@ -9,13 +9,14 @@
 <body>
   <div class="container">
     <div class="header">
-      <img src="icons/icon48.png" alt="logo" class="logo">
+      <img src="icons/icon48.png" alt="" class="logo">
       <h1>m3u8DL Sniffer 设置</h1>
+      <span class="save-state" id="saveState">已保存</span>
     </div>
 
     <!-- 服务器配置 -->
     <section class="section">
-      <h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>远程服务器配置</h2>
+      <h2><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>远程服务器配置</h2>
       <div class="form-group">
         <label for="server">服务器地址</label>
         <input type="text" id="server" placeholder="http://192.168.1.100:8080">
@@ -31,12 +32,8 @@
       </div>
       <div class="form-actions">
         <button id="btnTest" class="btn btn-secondary">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
           <span class="btn-label">测试连接</span>
-        </button>
-        <button id="btnSave" class="btn btn-primary">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-          保存配置
         </button>
       </div>
       <div id="testResult" class="test-result"></div>
@@ -44,7 +41,7 @@
 
     <!-- 嗅探资源类型 -->
     <section class="section">
-      <h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>嗅探资源类型</h2>
+      <h2><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>嗅探资源类型</h2>
       <p class="help" style="margin-bottom: 12px;">取消勾选将不会嗅探该类型的资源</p>
       <div class="ext-grid" id="extGrid">
         <!-- 动态生成 -->
@@ -53,13 +50,13 @@
 
     <!-- 代理配置 -->
     <section class="section">
-      <h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>代理配置</h2>
+      <h2><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>代理配置</h2>
       <div class="form-group">
         <label>
           <input type="checkbox" id="proxyEnable">
           启用代理
         </label>
-        <p class="help">启用后，预览和下载任务将通过代理服务器</p>
+        <p class="help">启用后，下载任务将通过代理服务器下载（不影响预览所用的浏览器网络）</p>
       </div>
       <div id="proxySettings" class="hide">
         <div class="form-row">
@@ -101,7 +98,7 @@
 
     <!-- AI 翻译配置 -->
     <section class="section">
-      <h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>AI 翻译配置</h2>
+      <h2><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>AI 翻译配置</h2>
       <div class="form-group">
         <label>
           <input type="checkbox" id="aiTranslateEnable">
@@ -127,12 +124,12 @@
         </div>
         <div class="form-group">
           <label for="aiPrompt">翻译提示词</label>
-          <textarea id="aiPrompt" rows="4" placeholder="请将以下内容翻译成中文，只返回翻译结果，不要添加其他内容：\n\n{text}"></textarea>
+          <textarea id="aiPrompt" rows="4" placeholder="翻译提示词"></textarea>
           <p class="help">使用 {text} 作为待翻译内容的占位符</p>
         </div>
         <div class="form-actions">
           <button id="btnTestAi" class="btn btn-secondary">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
             <span class="btn-label">测试翻译</span>
           </button>
         </div>
@@ -142,7 +139,7 @@
 
     <!-- 下载参数 -->
     <section class="section">
-      <h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>默认下载参数</h2>
+      <h2><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>默认下载参数</h2>
       <div class="form-row">
         <div class="form-group">
           <label for="threadCount">线程数</label>
@@ -163,9 +160,22 @@
     </section>
 
     <!-- 保存提示 -->
-    <div id="saveResult" class="save-result"></div>
+    <div id="saveResult" class="save-result" role="status" aria-live="polite"></div>
   </div>
 
+  <!-- 底部固定保存栏：任何位置修改配置后都无需滚回顶部 -->
+  <div class="save-bar" id="saveBar">
+    <span class="save-state-text" id="saveBarText">修改设置后记得保存</span>
+    <button id="btnReset" class="btn btn-secondary" type="button">
+      <span class="btn-label">恢复默认</span>
+    </button>
+    <button id="btnSave" class="btn btn-primary" type="button">
+      <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+      <span class="btn-label">保存配置</span>
+    </button>
+  </div>
+
+  <script src="defaults.js"></script>
   <script src="options.js"></script>
 </body>
 </html>

@@ -32,8 +32,16 @@ const elements = {
   aiApiKey: document.getElementById('aiApiKey'),
   aiPrompt: document.getElementById('aiPrompt'),
   btnTestAi: document.getElementById('btnTestAi'),
-  aiTestResult: document.getElementById('aiTestResult')
+  aiTestResult: document.getElementById('aiTestResult'),
+  // 底部固定保存栏与未保存状态
+  saveState: document.getElementById('saveState'),
+  saveBar: document.getElementById('saveBar'),
+  saveBarText: document.getElementById('saveBarText'),
+  btnReset: document.getElementById('btnReset')
 };
+
+// 是否有未保存的修改
+let isDirty = false;
 
 // 默认支持的资源类型
 const DEFAULT_EXTENSIONS = [
@@ -64,8 +72,8 @@ async function init() {
   elements.server.value = config.server || '';
   elements.username.value = config.username || '';
   elements.password.value = config.password || '';
-  elements.threadCount.value = config.threadCount || 32;
-  elements.retryCount.value = config.retryCount || 15;
+  elements.threadCount.value = config.threadCount || DEFAULT_THREAD_COUNT;
+  elements.retryCount.value = config.retryCount || DEFAULT_RETRY_COUNT;
   elements.autoSelect.checked = config.autoSelect !== false;
 
   // 代理配置
@@ -82,7 +90,7 @@ async function init() {
   elements.aiBaseUrl.value = config.aiBaseUrl || '';
   elements.aiModelId.value = config.aiModelId || '';
   elements.aiApiKey.value = config.aiApiKey || '';
-  elements.aiPrompt.value = config.aiPrompt || '作为一名专业的翻译官，请翻译标题为简体中文：保留关键信息，控制标题字数在25字以内，仅输出翻译后的内容，不要输出无关内容\n\n{text}';
+  elements.aiPrompt.value = config.aiPrompt || DEFAULT_AI_PROMPT;
 
   // 显示/隐藏代理设置
   toggleProxySettings();
@@ -96,6 +104,13 @@ async function init() {
 
   // 绑定事件
   bindEvents();
+
+  // 初始化后再启用"未保存"监听，避免填充表单时误标记
+  setDirty(false);
+  elements.extGrid.addEventListener('change', function() { setDirty(true); });
+  document.querySelector('.container').addEventListener('change', function(e) {
+    if (e.target.matches('input, select, textarea')) setDirty(true);
+  });
 }
 
 /**
@@ -124,10 +139,10 @@ function renderExtGrid(enabledExtensions) {
   const html = DEFAULT_EXTENSIONS.map(item => {
     const isChecked = enabledSet.has(item.ext);
     return `
-      <div class="ext-item">
+      <label class="ext-item" for="ext_${item.ext}">
         <input type="checkbox" id="ext_${item.ext}" value="${item.ext}" ${isChecked ? 'checked' : ''}>
-        <label for="ext_${item.ext}">${item.label}</label>
-      </div>
+        <span>${item.label}</span>
+      </label>
     `;
   }).join('');
 
@@ -148,8 +163,8 @@ function saveConfig() {
     server: elements.server.value.trim().replace(/\/+$/, ''), // 移除末尾斜杠
     username: elements.username.value.trim(),
     password: elements.password.value,
-    threadCount: parseInt(elements.threadCount.value) || 32,
-    retryCount: parseInt(elements.retryCount.value) || 15,
+    threadCount: parseInt(elements.threadCount.value) || DEFAULT_THREAD_COUNT,
+    retryCount: parseInt(elements.retryCount.value) || DEFAULT_RETRY_COUNT,
     autoSelect: elements.autoSelect.checked,
     enabledExtensions: enabledExtensions,
     // 代理配置
@@ -170,9 +185,67 @@ function saveConfig() {
 
   return new Promise((resolve) => {
     chrome.storage.sync.set(config, function() {
+      setDirty(false);
       resolve(config);
     });
   });
+}
+
+/**
+ * 更新"未保存"状态显示
+ * @param {boolean} dirty 是否存在未保存的修改
+ */
+function setDirty(dirty) {
+  isDirty = dirty;
+
+  elements.saveState.textContent = dirty ? '有未保存的修改' : '已保存';
+  elements.saveState.classList.toggle('dirty', dirty);
+
+  elements.saveBar.classList.toggle('dirty', dirty);
+  elements.saveBarText.textContent = dirty
+    ? '有未保存的修改，记得点右侧「保存配置」'
+    : '修改设置后记得保存';
+}
+
+/**
+ * 把表单恢复为默认值（不会自动写入存储，仍需点保存）
+ */
+function resetToDefaults() {
+  if (!window.confirm('确定要把所有设置恢复为默认值吗？（AI Key、代理密码等也会被清空，恢复后需点击保存）')) {
+    return;
+  }
+
+  elements.server.value = '';
+  elements.username.value = '';
+  elements.password.value = '';
+  elements.threadCount.value = DEFAULT_THREAD_COUNT;
+  elements.retryCount.value = DEFAULT_RETRY_COUNT;
+  elements.autoSelect.checked = DEFAULT_AUTO_SELECT;
+
+  elements.proxyEnable.checked = false;
+  elements.proxyType.value = 'http';
+  elements.proxyHost.value = '';
+  elements.proxyPort.value = '';
+  elements.proxyAuth.checked = false;
+  elements.proxyUsername.value = '';
+  elements.proxyPassword.value = '';
+
+  elements.aiTranslateEnable.checked = false;
+  elements.aiBaseUrl.value = '';
+  elements.aiModelId.value = '';
+  elements.aiApiKey.value = '';
+  elements.aiPrompt.value = DEFAULT_AI_PROMPT;
+
+  // 资源类型全选
+  elements.extGrid.querySelectorAll('input[type="checkbox"]').forEach(function(checkbox) {
+    checkbox.checked = true;
+  });
+
+  toggleProxySettings();
+  toggleProxyAuthSettings();
+  toggleAiTranslateSettings();
+  setDirty(true);
+  showSaveResult('已恢复默认值，点击「保存配置」生效', 'error');
 }
 
 /**
@@ -215,9 +288,6 @@ function bindEvents() {
   // 测试连接按钮
   elements.btnTest.addEventListener('click', handleTest);
 
-  // 保存按钮
-  elements.btnSave.addEventListener('click', handleSave);
-
   // 代理启用切换
   elements.proxyEnable.addEventListener('change', toggleProxySettings);
 
@@ -229,6 +299,10 @@ function bindEvents() {
 
   // 测试 AI 翻译按钮
   elements.btnTestAi.addEventListener('click', handleTestAiTranslate);
+
+  // 底部保存栏
+  elements.btnSave.addEventListener('click', handleSave);
+  elements.btnReset.addEventListener('click', resetToDefaults);
 }
 
 /**
@@ -283,8 +357,8 @@ async function handleTest() {
  * 保存配置
  */
 async function handleSave() {
-  const config = await saveConfig();
-  showSaveResult('配置已保存');
+  await saveConfig();
+  showSaveResult('配置已保存', 'success');
 }
 
 /**
@@ -298,12 +372,12 @@ function showTestResult(message, type) {
 /**
  * 显示保存提示
  */
-function showSaveResult(message) {
+function showSaveResult(message, type = 'success') {
   elements.saveResult.textContent = message;
-  elements.saveResult.className = 'save-result show success';
+  elements.saveResult.className = 'save-result show ' + type;
   setTimeout(() => {
     elements.saveResult.className = 'save-result';
-  }, 2000);
+  }, type === 'error' ? 5000 : 2000);
 }
 
 /**

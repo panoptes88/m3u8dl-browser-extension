@@ -89,6 +89,24 @@ body {
   letter-spacing: 0.2px;
 }
 
+/* 未保存状态徽标 */
+.save-state {
+  margin-left: auto;
+  flex-shrink: 0;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  background: rgba(255, 255, 255, 0.18);
+  color: rgba(255, 255, 255, 0.85);
+  white-space: nowrap;
+}
+
+.save-state.dirty {
+  background: #fde047;
+  color: #78350f;
+  font-weight: 600;
+}
+
 /* ===== 区块卡片 ===== */
 .section {
   background: var(--surface);
@@ -337,6 +355,11 @@ body {
   border-color: var(--primary);
 }
 
+.ext-item:focus-within {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-soft);
+}
+
 .ext-item:has(input:checked) {
   background: var(--primary-soft);
   border-color: var(--primary);
@@ -358,14 +381,63 @@ body {
   user-select: none;
 }
 
-/* ===== 保存提示 ===== */
+/* ===== 底部保存栏（固定在视口底部，避免改完设置还要滚回页面顶部保存） ===== */
+.save-bar {
+  position: fixed;
+  left: 50%;
+  bottom: 20px;
+  transform: translateX(-50%);
+  width: calc(100% - 48px);
+  max-width: 640px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
+  z-index: 50;
+}
+
+.save-bar .save-state-text {
+  flex: 1;
+  font-size: 13px;
+  color: var(--text-sub);
+}
+
+.save-bar.dirty {
+  border-color: var(--primary);
+  box-shadow: 0 4px 16px var(--primary-soft), var(--shadow-md);
+}
+
+.save-bar.dirty .save-state-text {
+  color: var(--primary);
+  font-weight: 500;
+}
+
+.save-bar .btn {
+  padding: 8px 18px;
+  font-size: 13px;
+}
+
+/* ===== 键盘焦点可见性（输入框沿用上方 :focus 光圈） ===== */
+.btn:focus-visible,
+.ext-item:focus-within {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-soft);
+}
+
+/* ===== Toast 提示（保存结果等） ===== */
 .save-result {
   position: fixed;
-  bottom: 24px;
+  bottom: 92px;
   right: 24px;
   padding: 12px 20px;
   border-radius: 8px;
   font-size: 14px;
+  color: #fff;
   opacity: 0;
   transform: translateY(8px);
   transition: opacity 0.25s, transform 0.25s;
@@ -381,5 +453,22 @@ body {
 
 .save-result.success {
   background: var(--success);
-  color: #fff;
+}
+
+.save-result.error {
+  background: var(--danger);
+}
+
+/* ===== 动效偏好 ===== */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .btn:active {
+    transform: none;
+  }
 }

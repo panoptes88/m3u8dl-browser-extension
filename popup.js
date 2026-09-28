@@ -9,6 +9,8 @@ let currentTabId = null;
 let resources = [];
 // 选中的资源索引集合
 let selectedIndices = new Set();
+// 已展开预览面板的资源索引（重新渲染后用于恢复展开状态）
+let openPanels = new Set();
 // 服务器配置
 let serverConfig = {
   server: '',
@@ -36,8 +38,23 @@ let aiTranslateConfig = {
   prompt: ''
 };
 
+// 默认下载参数（在设置页配置，发送任务时使用）
+let downloadParams = {
+  threadCount: DEFAULT_THREAD_COUNT,
+  retryCount: DEFAULT_RETRY_COUNT,
+  autoSelect: DEFAULT_AUTO_SELECT
+};
+
 // 翻译状态
 let isTranslating = false;
+
+// 空状态文案（HTML 中为静态占位，此处统一由此处维护）
+const STATUS_MESSAGE = '暂未检测到媒体资源';
+const STATUS_HINT = '请播放视频后刷新';
+const STATUS_LOADING = '正在检测媒体资源...';
+
+// 是否正在拉取资源列表（用于避免"正在检测"文案被立刻覆盖）
+let isLoadingResources = false;
 
 // DOM 元素
 const elements = {
@@ -53,8 +70,13 @@ const elements = {
   btnSelectAll: document.getElementById('btnSelectAll'),
   btnSend: document.getElementById('btnSend'),
   toast: document.getElementById('toast'),
+  toastMessage: document.querySelector('#toast .toast-message'),
+  toastClose: document.getElementById('toastClose'),
   proxyToggle: document.getElementById('proxyToggle')
 };
+
+// Toast 自动消失的定时器
+let toastTimer = null;
 
 
 /**
@@ -75,6 +97,9 @@ async function init() {
 
   // 绑定事件
   bindEvents();
+
+  // 绑定 Toast 的悬停暂停与关闭
+  bindToastEvents();
 
   // 更新连接状态
   updateConnectionStatus();
@@ -142,7 +167,8 @@ async function loadConfig() {
   return new Promise((resolve) => {
     chrome.storage.sync.get(
       ['server', 'username', 'password', 'proxyEnable', 'proxyType', 'proxyHost', 'proxyPort', 'proxyAuth', 'proxyUsername', 'proxyPassword',
-       'aiTranslateEnable', 'aiBaseUrl', 'aiModelId', 'aiApiKey', 'aiPrompt'],
+       'aiTranslateEnable', 'aiBaseUrl', 'aiModelId', 'aiApiKey', 'aiPrompt',
+       'threadCount', 'retryCount', 'autoSelect'],
       function(data) {
         serverConfig = {
           server: data.server || '',
@@ -163,7 +189,13 @@ async function loadConfig() {
           baseUrl: data.aiBaseUrl || '',
           modelId: data.aiModelId || '',
           apiKey: data.aiApiKey || '',
-          prompt: data.aiPrompt || '作为一名专业的翻译官，请翻译标题为简体中文：保留关键信息，控制标题字数在25字以内，仅输出翻译后的内容，不要输出无关内容\n\n{text}'
+          prompt: data.aiPrompt || DEFAULT_AI_PROMPT
+        };
+        // 下载参数：取设置页保存的值，未配置时回退到默认值
+        downloadParams = {
+          threadCount: parseInt(data.threadCount) || DEFAULT_THREAD_COUNT,
+          retryCount: parseInt(data.retryCount) || DEFAULT_RETRY_COUNT,
+          autoSelect: data.autoSelect !== false
         };
         resolve();
       }
@@ -237,13 +269,33 @@ function updateProxyToggleState() {
 }
 
 /**
+ * 更新空状态文案
+ * @param {string} message 主文案
+ * @param {string} hint 次要提示
+ */
+function setStatusMessage(message, hint) {
+  const p = elements.emptyState.querySelector('p:not(.hint)');
+  const hintEl = elements.emptyState.querySelector('.hint');
+  if (p) p.textContent = message;
+  if (hintEl) hintEl.textContent = hint;
+}
+
+/**
  * 从 background 加载资源
  */
 async function loadResources() {
+  // 列表还是空的时，提示"正在检测"，避免用户误以为没嗅探到
+  const wasLoading = isLoadingResources;
+  isLoadingResources = true;
+  if (resources.length === 0 && !elements.emptyState.classList.contains('hide')) {
+    setStatusMessage(STATUS_LOADING, '请稍候');
+  }
+
   return new Promise((resolve) => {
     chrome.runtime.sendMessage(
       { type: 'getResources', tabId: currentTabId },
       function(response) {
+        isLoadingResources = wasLoading;
         if (chrome.runtime.lastError) {
           console.error('Error loading resources:', chrome.runtime.lastError);
           resources = [];
@@ -266,6 +318,10 @@ function renderResources() {
 
   // 空状态
   if (resources.length === 0) {
+    // 拉取过程中保持"正在检测"，否则还原默认文案
+    if (!isLoadingResources) {
+      setStatusMessage(STATUS_MESSAGE, STATUS_HINT);
+    }
     elements.resourceList.innerHTML = '';
     elements.resourceList.appendChild(elements.emptyState);
     elements.emptyState.style.display = 'block';
@@ -283,21 +339,23 @@ function renderResources() {
     const isSelected = selectedIndices.has(index);
     const isM3u8 = ['m3u8', 'm3u'].includes(ext);
     const isPlayable = isM3u8 || ext === 'mp4';
+    // 展开状态在重新渲染后保留
+    const isOpen = openPanels.has(index);
     const titleAttr = resource.translatedTitle
       ? `${escapeHtml(originalTitle)}\n${escapeHtml(resource.translatedTitle)}`
       : escapeHtml(resource.url);
 
     return `
-      <div class="resource-panel" data-index="${index}">
+      <div class="resource-panel${isOpen ? ' open' : ''}" data-index="${index}">
         <div class="panel-heading">
-          <input type="checkbox" class="check-item" ${isSelected ? 'checked' : ''} data-index="${index}">
+          <input type="checkbox" class="check-item" ${isSelected ? 'checked' : ''} data-index="${index}" aria-label="选择该资源">
           <span class="resource-name" title="${titleAttr}">${escapeHtml(fileName)}</span>
           <span class="resource-size ${sizeStr ? '' : 'hide'}">${sizeStr}</span>
           <span class="resource-ext ${ext}">${ext}</span>
-          ${isPlayable ? `<button class="btn-icon btn-play" data-index="${index}" title="预览"><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="6 3 20 12 6 21 6 3"/></svg></button>` : ''}
-          <button class="btn-icon btn-copy-url" data-index="${index}" title="复制链接"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
+          ${isPlayable ? `<button type="button" class="btn-icon btn-play" data-index="${index}" aria-expanded="${isOpen}" aria-label="预览" title="预览"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="6 3 20 12 6 21 6 3"/></svg></button>` : ''}
+          <button type="button" class="btn-icon btn-copy-url" data-index="${index}" aria-label="复制链接" title="复制链接"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
         </div>
-        <div class="panel-body hide" id="panel-${index}">
+        <div class="panel-body${isOpen ? '' : ' hide'}" id="panel-${index}">
           <div class="media-info" id="media-info-${index}" data-loaded="false">
             <span class="info-url">${escapeHtml(resource.url)}</span>
           </div>
@@ -381,15 +439,23 @@ function bindEvents() {
 
     // 刷新页面
     if (currentTabId) {
+      resources = [];
+      openPanels.clear();
+      renderResources();
+      // 刷新期间给出明确反馈，避免用户以为卡住
+      setStatusMessage(STATUS_LOADING, '页面刷新后自动重新检测');
+      showToast('正在刷新页面...');
+
       chrome.tabs.reload(currentTabId);
-      // 等待页面加载完成后重新加载资源
-      setTimeout(async () => {
-        await loadResources();
-        showToast('已刷新');
-      }, 1000);
+
+      // 兜底：页面若迟迟不触发加载完成（如加载很慢），也重新拉一次列表
+      setTimeout(() => {
+        loadResources();
+      }, 5000);
     } else {
       resources = [];
       selectedIndices.clear();
+      openPanels.clear();
       renderResources();
       showToast('已刷新');
     }
@@ -436,10 +502,15 @@ function togglePanel(index) {
   const panel = document.getElementById(`panel-${index}`);
   const mediaInfo = document.getElementById(`media-info-${index}`);
   const video = document.getElementById(`video-${index}`);
+  const panelEl = document.querySelector(`.resource-panel[data-index="${index}"]`);
+  const playBtn = panelEl ? panelEl.querySelector('.btn-play') : null;
 
   if (!panel.classList.contains('hide')) {
     // 收起
     panel.classList.add('hide');
+    if (panelEl) panelEl.classList.remove('open');
+    if (playBtn) playBtn.setAttribute('aria-expanded', 'false');
+    openPanels.delete(index);
     // 暂停视频
     if (video && !video.paused) {
       video.pause();
@@ -449,12 +520,35 @@ function togglePanel(index) {
 
   // 展开
   panel.classList.remove('hide');
+  if (panelEl) panelEl.classList.add('open');
+  if (playBtn) playBtn.setAttribute('aria-expanded', 'true');
+  openPanels.add(index);
 
   // 如果还没加载过，开始加载
   if (mediaInfo.dataset.loaded === 'false') {
     mediaInfo.dataset.loaded = 'true';
     loadVideoInfo(index);
   }
+}
+
+/**
+ * 更新面板里的状态行（用于"正在加载"这类临时提示）
+ */
+function setMediaStatus(mediaInfo, text) {
+  if (!mediaInfo) return;
+  let item = mediaInfo.querySelector('[data-label="状态"]');
+  if (!text) {
+    if (item) item.remove();
+    return;
+  }
+  if (!item) {
+    item = document.createElement('div');
+    item.className = 'info-item';
+    item.setAttribute('data-label', '状态');
+    item.innerHTML = '<span class="info-label">状态:</span> <span class="info-value"></span>';
+    mediaInfo.appendChild(item);
+  }
+  item.querySelector('.info-value').textContent = text;
 }
 
 /**
@@ -474,6 +568,8 @@ async function loadVideoInfo(index) {
     if (Hls.isSupported()) {
       const headers = parseHeaders(resource.headers);
 
+      setMediaStatus(mediaInfo, '正在加载预览...');
+
       // 使用 declarativeNetRequest 设置请求头（参考猫爪）
       await new Promise((resolve) => {
         chrome.runtime.sendMessage(
@@ -489,6 +585,7 @@ async function loadVideoInfo(index) {
 
       // 监听 manifest 解析完成
       hls.on(Hls.Events.MANIFEST_PARSED, function(event, data) {
+        setMediaStatus(mediaInfo, '');
         if (data.levels && data.levels.length > 1) {
           appendMediaInfo(mediaInfo, '清晰度', `${data.levels.length} 个变体`);
           data.levels.forEach((level, i) => {
@@ -504,12 +601,14 @@ async function loadVideoInfo(index) {
       // 监听 level 加载
       hls.on(Hls.Events.LEVEL_LOADED, function(event, data) {
         if (data.details && data.details.totalduration) {
+          setMediaStatus(mediaInfo, '');
           appendMediaInfo(mediaInfo, '时长', formatDuration(data.details.totalduration));
         }
       });
 
       // 监听视频元数据
       video.addEventListener('loadedmetadata', function() {
+        setMediaStatus(mediaInfo, '');
         if (video.duration && video.duration !== Infinity) {
           appendMediaInfo(mediaInfo, '时长', formatDuration(video.duration));
         }
@@ -525,6 +624,7 @@ async function loadVideoInfo(index) {
           hls.destroy();
           chrome.runtime.sendMessage({ type: 'clearRequestHeaders' });
           console.warn('[m3u8DL] HLS 播放失败，回退到解析模式');
+          setMediaStatus(mediaInfo, '');
           loadM3u8InfoByParsing(index);
         }
       });
@@ -534,6 +634,13 @@ async function loadVideoInfo(index) {
     }
   } else {
     // 非 m3u8 文件
+    setMediaStatus(mediaInfo, '正在加载预览...');
+    video.addEventListener('loadedmetadata', function() {
+      setMediaStatus(mediaInfo, '');
+    }, { once: true });
+    video.addEventListener('error', function() {
+      setMediaStatus(mediaInfo, '预览加载失败');
+    }, { once: true });
     video.src = resource.url;
     video.classList.remove('hide');
     appendMediaInfo(mediaInfo, '类型', resource.ext.toUpperCase());
@@ -554,7 +661,7 @@ async function loadM3u8InfoByParsing(index) {
   const referer = headers['Referer'] || headers['referer'];
   const fetchHeaders = referer ? { Referer: referer } : {};
 
-  appendMediaInfo(mediaInfo, '状态', '解析中...');
+  setMediaStatus(mediaInfo, '正在解析 m3u8...');
 
   try {
     const result = await new Promise((resolve) => {
@@ -745,12 +852,16 @@ async function handleSend() {
   const selectedResources = Array.from(selectedIndices).map(i => resources[i]);
 
   elements.btnSend.disabled = true;
-  elements.btnSend.querySelector('.btn-label').textContent = '发送中...';
+  const sendLabel = elements.btnSend.querySelector('.btn-label');
+  sendLabel.textContent = '发送中...';
 
   let successCount = 0;
   let failCount = 0;
 
-  for (const resource of selectedResources) {
+  for (let i = 0; i < selectedResources.length; i++) {
+    const resource = selectedResources[i];
+    // 多选发送是串行的，显示进度让用户知道还要等多久
+    sendLabel.textContent = `发送中 ${i + 1}/${selectedResources.length}...`;
     try {
       // 只提取 Referer 头
       const headers = parseHeaders(resource.headers);
@@ -760,9 +871,9 @@ async function handleSend() {
         url: resource.url,
         output_name: generateOutputName(resource),
         headers: referer ? `Referer: ${referer}` : '',
-        auto_select: true,
-        thread_count: 32,
-        retry_count: 15
+        auto_select: downloadParams.autoSelect,
+        thread_count: downloadParams.threadCount,
+        retry_count: downloadParams.retryCount
       };
 
       // 添加代理配置
@@ -805,7 +916,7 @@ async function handleSend() {
   }
 
   elements.btnSend.disabled = false;
-  elements.btnSend.querySelector('.btn-label').textContent = '发送到远程下载';
+  sendLabel.textContent = '发送到远程下载';
 
   if (failCount === 0) {
     showToast(`成功发送 ${successCount} 个任务`, 'success');
@@ -1084,13 +1195,52 @@ function escapeHtml(str) {
 
 /**
  * 显示 Toast 提示
+ * @param {string} message 提示内容
+ * @param {string} type 'success' | 'error' | ''
+ * @param {number} [duration] 停留毫秒数，默认成功/普通 2 秒、错误 5 秒
  */
-function showToast(message, type = '') {
-  elements.toast.textContent = message;
+function showToast(message, type = '', duration) {
+  if (duration === undefined) {
+    // 结果类消息（尤其失败）需要更长时间阅读
+    duration = (type === 'error' || type === 'success') ? 5000 : 2000;
+  }
+
+  clearToast();
+  elements.toastMessage.textContent = message;
   elements.toast.className = 'toast show' + (type ? ' ' + type : '');
-  setTimeout(() => {
-    elements.toast.className = 'toast';
-  }, 2000);
+
+  toastTimer = setTimeout(clearToast, duration);
+}
+
+/**
+ * 立即隐藏 Toast
+ */
+function clearToast() {
+  if (toastTimer) {
+    clearTimeout(toastTimer);
+    toastTimer = null;
+  }
+  elements.toast.className = 'toast';
+}
+
+/**
+ * 鼠标悬停时暂停自动消失，方便阅读较长的结果
+ */
+function bindToastEvents() {
+  elements.toast.addEventListener('mouseenter', function() {
+    if (toastTimer) {
+      clearTimeout(toastTimer);
+      toastTimer = null;
+    }
+  });
+
+  elements.toast.addEventListener('mouseleave', function() {
+    if (elements.toast.classList.contains('show')) {
+      toastTimer = setTimeout(clearToast, 1500);
+    }
+  });
+
+  elements.toastClose.addEventListener('click', clearToast);
 }
 
 /**
